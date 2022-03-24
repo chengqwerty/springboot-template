@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- debug 打印logback内部日志信息，查看logback运行状态，默认false-->
+<!-- scan 配置文件发生变化重新加载，默认true -->
+<!-- scanPeriod 配置文件重新加载时间间隔，配合scan使用，默认单位毫秒，默认时间间隔1分钟 -->
+<!-- packagingData 打印堆栈追踪信息，默认false，此配置为true非常耗费资源，特别是异常多的程序，慎用 -->
+<configuration debug="false" scan="true" scanPeriod="30 seconds" packagingData="true">
+
+    <!-- springProperty获取spring的property 比如application.properties文件中配置的属性,这里为了获取配置的logs文件的目录 -->
+    <springProperty scope="context" name="app.log.path" source="app.log.path" defaultValue="/root/programs/${spring.application.name}/logs"/>
+    <!-- 同上这里定义了日志文件的前缀名称 -->
+    <springProperty scope="context" name="app.log.prefix" source="app.log.prefix" defaultValue="prefix"/>
+
+    <!-- 开发环境使用,打印到控制台 -->
+    <appender name="develop_info_appender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{dd-MM-yyyy HH:mm:ss.SSS} %magenta([%thread]) %green([%X{logTokenId}]) %highlight(%-5level) %logger{36}.%M-%yellow(%L) - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+    <appender name="develop_debug_appender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{dd-MM-yyyy HH:mm:ss.SSS} %magenta([%thread]) %green([%X{logTokenId}]) %highlight(%-5level) %logger{36}.%M-%yellow(%L) - %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- 定义变量 -->
+    <property name="BASE_PATH" value="${app.log.path}" />
+    <property name="BASE_PREFIX" value="${app.log.prefix}" />
+    <!-- appender是负责写日志的组件，这里我们根据日志级别建立多个appender，每个级别的日志写不同的文件 -->
+    <appender name="production_info_appender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 要写的日志文件，如果没有将会创建-->
+        <file>${BASE_PATH}/info/${BASE_PREFIX}_info.log</file>
+        <!-- 根据日志级别匹配 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <!-- 定义滚动策略，SizeAndTimeBasedRollingPolicy 是根据文件大小和时间的滚动策略 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- rollover daily -->
+            <fileNamePattern>${BASE_PATH}/info/%d{yyyy-MM-dd}/${BASE_PREFIX}_info_%d{yyyy-MM-dd}_%i.log</fileNamePattern>
+            <!-- each file should be at most 200MB, keep 60 days worth of history, but at most 20GB -->
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %highlight(%-5level) %magenta([%thread]) %green(%logger{36})-%yellow(%L): %msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="production_warn_appender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${BASE_PATH}/warn/${BASE_PREFIX}_warn.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>WARN</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${BASE_PATH}/warn/%d{yyyy-MM-dd}/${BASE_PREFIX}_warn_%d{yyyy-MM-dd}_%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %highlight(%-5level) %magenta([%thread]) %green(%logger{36})-%yellow(%L): %msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="production_error_appender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${BASE_PATH}/error/${BASE_PREFIX}_error.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${BASE_PATH}/error/%d{yyyy-MM-dd}/${BASE_PREFIX}_error_%d{yyyy-MM-dd}_%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %highlight(%-5level) %magenta([%thread]) %green(%logger{36})-%yellow(%L): %msg%n</pattern>
+        </encoder>
+    </appender>
+    <!-- 为了让hibernate的日志方便查看，我们将trace的日志也打印到debug中,但是生产环境不建议打印sql，需不需要自己选择-->
+    <appender name="production_debug_appender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${BASE_PATH}/debug/${BASE_PREFIX}_debug.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${BASE_PATH}/debug/%d{yyyy-MM-dd}/${BASE_PREFIX}_debug_%d{yyyy-MM-dd}_%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d %highlight(%-5level) %magenta([%thread]) %green(%logger{36})-%yellow(%L): %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 开发环境日志 -->
+    <springProfile name="development">
+        <root level="info">
+            <appender-ref ref="develop_info_appender" />
+        </root>
+        <!-- 调试方便，当前项目包打印debug -->
+        <logger name="com.sxkj.source.trace" level="debug" additivity="false">
+            <appender-ref ref="develop_debug_appender"/>
+        </logger>
+    </springProfile>
+    <!-- 生产环境日志 -->
+    <springProfile name="production">
+        <root level="info">
+            <appender-ref ref="production_info_appender" />
+            <appender-ref ref="production_warn_appender" />
+            <appender-ref ref="production_error_appender" />
+        </root>
+        <logger name="com.sxkj.source.trace" level="debug">
+            <appender-ref ref="production_debug_appender"/>
+        </logger>
+        <!--        <logger name="com.sxkj.source.trace" level="debug" additivity="false">-->
+        <!--            <appender-ref ref="production_debug_appender"/>-->
+        <!--            <appender-ref ref="production_info_appender" />-->
+        <!--            <appender-ref ref="production_warn_appender" />-->
+        <!--            <appender-ref ref="production_error_appender" />-->
+        <!--        </logger>-->
+        <!-- 为了查看方便我们将hibernate的debug和trace日志打印到一起，生产环境最好禁用hibernate日志打印（将下面的logger配置注释）-->
+        <!--        <logger name="org.hibernate.SQL" level="debug">-->
+        <!--            <appender-ref ref="production_debug_appender"/>-->
+        <!--        </logger>-->
+        <!--        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="trace">-->
+        <!--            <appender-ref ref="production_debug_appender"/>-->
+        <!--        </logger>-->
+        <!--        <logger name="org.hibernate.type.descriptor.sql.BasicExtractor" level="trace">-->
+        <!--            <appender-ref ref="production_debug_appender"/>-->
+        <!--        </logger>-->
+    </springProfile>
+
+</configuration>
