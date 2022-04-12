@@ -111,7 +111,7 @@
             <appender-ref ref="develop_info_appender" />
         </root>
         <!-- 调试方便，当前项目包打印debug -->
-        <logger name="som.make.log" level="debug" additivity="false">
+        <logger name="som.make" level="debug" additivity="false">
             <appender-ref ref="develop_debug_appender"/>
         </logger>
     </springProfile>

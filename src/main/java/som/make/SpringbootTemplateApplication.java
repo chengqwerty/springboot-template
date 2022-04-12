@@ -1,13 +1,13 @@
-package som.make.log;
+package som.make;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class LogbackTemplateApplication {
+public class SpringbootTemplateApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(LogbackTemplateApplication.class, args);
+        SpringApplication.run(SpringbootTemplateApplication.class, args);
     }
 
 }
