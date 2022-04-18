@@ -20,10 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Aspect
 @Component
@@ -34,22 +31,16 @@ public class CheckParamAspect {
 
     /**
      * 参数校验切面方法
-     * @param joinPoint
-     * @param checkParam
-     * @return
-     * @throws Throwable
      */
     @Around("@annotation(checkParam)")
     public Object checkParam(ProceedingJoinPoint joinPoint, CheckParam checkParam) throws Throwable {
         logger.debug("开始进行参数校验");
-        Object[] objects = joinPoint.getArgs();
         CheckParamDefine checkParamDefine = new CheckParamDefine();
         checkParamDefine.parseAnnotation(checkParam);
         CheckStatus checkStatus = checkProcess(joinPoint, checkParam);
         if (checkStatus.getStatus().equals("-1")) {
             logger.error("{}.{}参数错误，{}", joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName(), checkStatus.getMessage());
-            ResultBean resultBean = new ResultBean<>(ResultBean.CHECK_FAIL, checkStatus.getMessage());
-            return resultBean;
+            return new ResultBean<>(ResultBean.CHECK_FAIL, checkStatus.getMessage());
         } else if (checkStatus.getStatus().equals("1")) {
             if (ObjectUtils.isEmpty(checkStatus.getMessage())) {
                 logger.info("{}.{}参数正确。", joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
@@ -62,24 +53,22 @@ public class CheckParamAspect {
     }
 
     /**
-     * 参数校验方法
-     * @param joinPoint
-     * @param checkParam
-     * @return
-     * @throws IllegalAccessException
+     * 参数校验
+     * 1、注解参数为空，跳过参数检验。
+     * 2、get方法走checkRequestParams校验
+     * 3、post方法走checkRequestBody校验
      */
     public CheckStatus checkProcess(ProceedingJoinPoint joinPoint, CheckParam checkParam) throws IllegalAccessException {
-        Object[] objects = joinPoint.getArgs();
         CheckParamDefine checkParamDefine = new CheckParamDefine();
         checkParamDefine.parseAnnotation(checkParam);
         CheckStatus checkStatus = null;
-        if ((checkParamDefine.getNotNull() == null || checkParamDefine.getNotNull().size() == 0) && (checkParamDefine.getNotNull() == null || checkParamDefine.getNotNull().size() == 0)) {
+        if ((checkParamDefine.getNotNull() == null || checkParamDefine.getNotNull().size() == 0) && (checkParamDefine.getNotAllNull() == null || checkParamDefine.getNotAllNull().size() == 0)) {
             logger.warn("注解的参数是空的，将跳过参数校验。");
             checkStatus = new CheckStatus("1");
             checkStatus.setMessage("注解的参数是空的，将跳过参数校验。");
         } else  {
-            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-            if (request.getMethod().equals(RequestMethod.GET)) {
+            HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
+            if (request.getMethod().equals(RequestMethod.GET.name())) {
                 checkStatus = checkRequestParams(joinPoint, checkParamDefine, request);
             } else if (request.getMethod().equals(RequestMethod.POST.name())) {
                 checkStatus = checkRequestBody(joinPoint, checkParamDefine);
@@ -90,10 +79,6 @@ public class CheckParamAspect {
 
     /**
      * 对get方法的参数校验
-     * @param joinPoint
-     * @param checkParamDefine
-     * @param request
-     * @return
      */
     private CheckStatus checkRequestParams(JoinPoint joinPoint, CheckParamDefine checkParamDefine, HttpServletRequest request) {
         // 检查requestParam
@@ -110,10 +95,6 @@ public class CheckParamAspect {
 
     /**
      * post 方法的参数校验
-     * @param joinPoint
-     * @param checkParamDefine
-     * @return
-     * @throws IllegalAccessException
      */
     private CheckStatus checkRequestBody(JoinPoint joinPoint, CheckParamDefine checkParamDefine) throws IllegalAccessException {
         CheckStatus checkStatus = new CheckStatus("1");
@@ -138,7 +119,6 @@ public class CheckParamAspect {
                 if (ClassTypeUtil.isPackClass(paramsVO) || ClassTypeUtil.isBaseClass(paramsVO)) {
                     logger.error("{}.{}参数校验失败，此注解只接收 Map 或 Object 对象", joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
                     checkStatus.setStatus("2");
-                    return checkStatus;
                 } else {
                     if (paramsVO instanceof List<?> && ((List<?>) paramsVO).size() > 0) {
                         logger.info("{}.{}参数校验终端，此注解不校验list属性，list集合不为空", joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
@@ -157,8 +137,8 @@ public class CheckParamAspect {
                         }
                     }
                     checkCycle(checkParamDefine, paramsBodyMap, checkStatus);
-                    return checkStatus;
                 }
+                return checkStatus;
             }
         }
         checkStatus.setStatus("-1");
@@ -168,19 +148,15 @@ public class CheckParamAspect {
 
     /**
      * 循环判断每一组规则
-     * @param checkParamDefine
-     * @param paramMap
-     * @param checkStatus
-     * @return
      */
-    private CheckStatus checkCycle(CheckParamDefine checkParamDefine, Map paramMap, CheckStatus checkStatus) {
+    private void checkCycle(CheckParamDefine checkParamDefine, Map paramMap, CheckStatus checkStatus) {
         // 遍历集合,判断notNull
         if (checkParamDefine.getNotNull() != null) {
             for (CheckParamDefine.CheckGroup checkGroup : checkParamDefine.getNotNull()) {
                 for (CheckParamDefine.CheckSingle checkSingle: checkGroup.getCheckSingleList()) {
                     if (ObjectUtils.isEmpty(paramMap.get(checkSingle.getName()))) {
                         checkStatus.setResult("-1", "notNull", checkSingle.getName(), checkSingle.getMessage());
-                        return checkStatus;
+                        return;
                     }
                 }
             }
@@ -206,7 +182,6 @@ public class CheckParamAspect {
                 checkStatus.setResult("-1", "notAllNull", null, "请求中的参数不符合要求，请检查。");
             }
         }
-        return checkStatus;
     }
 
 }
